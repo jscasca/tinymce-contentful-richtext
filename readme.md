@@ -1,10 +1,6 @@
-# TinyMCE for Contentful
+# TinyMCE for Contentful - App
 
-This repository contains the integration of the TinyMCE rich text editor into the 
-Contentful headless CMS. 
 
-Please see [this blog post](https://go.tiny.cloud/blog/is-the-headless-cms-the-future-of-content-publishing/)
-for an introduction to TinyMCE for Contentful.
 
 # Packaging
 
@@ -15,36 +11,45 @@ In Tiny's case, the files in `src/` are deployed to:
  - https://contentful.tiny.cloud/ (production)
  - https://contentful-staging.tiny.cloud/ (staging)
 
-# Forking
 
-Note that this extension only works when installed using the "src" method, 
-not the "srcdoc" method. As such, if you wish to fork this extension, you 
-will need to host the files in the `src/` folder on a web server and update
-your `extension.json` file to point to it.
+# Testing this integration
 
-# Developing
+## Creating your own App
 
-To deploy experimental changes to the `extension.json` file, you can use 
-the contentful CLI: 
+Launch your instance:
 
-    contentful extension update --version=X
+  - Install dependencies `yarn install`
 
-Where X is the previous version of the extension installed.
-This only affects your own Contentful instance.
+  - Start the server `yarn serve`
 
-To make changes to the files in `src/`, re-deploy them to the appropriate web server. 
+Head over to Contentful.com and create a new account if you don't have one.
 
-Note that you will need to change the extension settings in the Contentful UI
-to set your API Key, and to change between the live and staging URLs.
+Head over to `Organization settings & subscriptions` -> `Apps` -> `Create App`
 
-Note that whenever you `contentful extension update` it will forget your settings,
-so you'll have to put in your API key and staging URL again.
+Select any name and point the App URL to where you are hosting this distribution (`http://localhost:8080`)
 
-# Extension URL
+In `Locations`, select `Entry field` and check `Rich text`
 
-To install the extension into Contentful, add an extension using the 
-"Install from Github" option, and enter the following URL: 
+Save
 
-https://github.com/tinymce/tinymce-contentful/blob/master/extension.json
+## Install the App to your environment
+
+Select your environment ('Contentful Apps' if you just created your account)
+
+Select `Apps` -> `Manage Apps`
+
+Scroll down and install the App you just created
+
+## Editing content
+
+Go to `Content model` to create or update content models with Rich Text as a field
+
+Add a new `Content Type`, then add a `Rich Text` field
+
+Select `Create and configure` or `Create` and then go to `settings`
+
+In the configuration modal, go to `Appearance` and select the App you just created
+
+Go to `Content` and create or edit an entry using TinyMCE
 
 

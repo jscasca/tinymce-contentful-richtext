@@ -78,12 +78,53 @@ const setupButtons = (editor: any, sdk: any) => {
   ].filter((x: any) => allowedEmbeds.includes(x.id)).map(x => ({type: x.type,text: x.text,onAction: x.onAction}));
   console.log('embeds: ', embeds);
   editor.ui.registry.addMenuButton('ctfEmbed', {
+    icon: 'plus',
     text: 'Embed',
     fetch: (callback: any) => {
       // filter from api
       callback(embeds);
     }
   });
+        // editor.ui.registry.addButton('embedentry', {
+      //   icon: 'custom',
+      //   text: 'Entry',
+      //   tooltip: 'Embed entry',
+      //   onAction: () => {
+      //     embedEntry(editor);
+      //   }
+      // });
+      // editor.ui.registry.addButton('embedasset', {
+      //   icon: 'image',
+      //   text: 'Asset',
+      //   tooltip: 'Embed asset',
+      //   onAction: () => {
+      //     embedAsset(editor);
+      //   }
+      // });
+      // editor.ui.registry.addButton('inlineentry', {
+      //   text: 'Inline Entry',
+      //   tooltip: 'Embed inline entry',
+      //   onAction: () => {
+      //     embedInline(editor);
+      //   }
+      // });
+      // editor.ui.registry.addButton('inlineentry2', {
+      //   icon: 'custom',
+      //   text: 'Inline',
+      //   onAction: () => {
+      //     embedInline(editor);
+      //   }
+      // });
+      // editor.ui.registry.addButton('saveobj', {
+      //   icon: 'custom',
+      //   tooltip: 'Save content',
+      //   onAction: () => {
+      //     console.log('saving: ');
+      //     const doc = parser.parse(editor.getContent({format: 'tree'}));
+      //     console.log(doc);
+      //   }
+
+      // });
 };
 
 export {

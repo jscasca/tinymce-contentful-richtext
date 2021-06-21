@@ -71,31 +71,6 @@ export const ContentfulEditor = (sdk: any): void => {
     validNodes: validNodes
   });
 
-  const embed = (instance: any, id: string, type: string): void => {
-    //<div class='mceNonEditable' contentfulid='${node.data.target.sys.id}' type='${node.data.target.sys.linkType}'></div>
-    instance.insertContent(`<div class='mceNonEditable' contentfulid='${id}' type='${type}'></div><p><br data-mce-bogus='1'></p>`);
-  };
-
-  const embedEntry = (instance: any) => {
-    sdk.dialogs.selectSingleEntry().then((entry: any) => {
-      console.log('embedding entry: ', entry);
-      embed(instance, entry.sys.id, 'Entry');
-    });
-  };
-
-  const embedAsset = (instance: any) => {
-    sdk.dialogs.selectSingleAsset().then((asset: any) => {
-      console.log('embedding asset:', asset);
-      embed(instance, asset.sys.id, 'Asset');
-    });
-  };
-
-  const embedInline = (instance: any) => {
-    sdk.dialogs.selectSingleEntry().then((entry: any) => {
-      instance.insertContent(`<span class='mceNonEditable' contentfulid='${entry.sys.id}' type='Entry'></span>`);
-    });
-  };
-
   const validElements = [
     'p',
     'blockquote',
@@ -124,53 +99,14 @@ export const ContentfulEditor = (sdk: any): void => {
   const finalInit = {
     selector: '#editor',
     contextmenu: 'ctfLink',
-    toolbar: 'ctfEmbed styleselect | bold italic underline | ctfLink | bullist numlist | blockquote hr |  embedentry ',
+    toolbar: 'styleselect | bold italic underline | ctfLink | bullist numlist | blockquote hr |  ctfEmbed',
     min_height: 650,
     max_height: 1050,
-    plugins: 'contentful noneditable lists hr ctfLink',
+    plugins: 'contentful noneditable lists hr',
     valid_elements: validElements,
     valid_children: '+span[div]',
     setup: (editor: any) => {
-      editor.ui.registry.addButton('embedentry', {
-        icon: 'custom',
-        text: 'Entry',
-        tooltip: 'Embed entry',
-        onAction: () => {
-          embedEntry(editor);
-        }
-      });
-      editor.ui.registry.addButton('embedasset', {
-        icon: 'image',
-        text: 'Asset',
-        tooltip: 'Embed asset',
-        onAction: () => {
-          embedAsset(editor);
-        }
-      });
-      editor.ui.registry.addButton('inlineentry', {
-        text: 'Inline Entry',
-        tooltip: 'Embed inline entry',
-        onAction: () => {
-          embedInline(editor);
-        }
-      });
-      editor.ui.registry.addButton('inlineentry2', {
-        icon: 'custom',
-        text: 'Inline',
-        onAction: () => {
-          embedInline(editor);
-        }
-      });
-      editor.ui.registry.addButton('saveobj', {
-        icon: 'custom',
-        tooltip: 'Save content',
-        onAction: () => {
-          console.log('saving: ');
-          const doc = parser.parse(editor.getContent({format: 'tree'}));
-          console.log(doc);
-        }
 
-      });
       editor.on('PostRender', () => {
         // editor.parser.addNodeFilter('a', (nodes: any[]): void => {
         //   nodes.forEach((node: any) => {

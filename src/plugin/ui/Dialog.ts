@@ -233,32 +233,32 @@ const getWindowSpec = (editor: any, data: any, sdk: any) => {
   return spec;
 };
 
-const open = (editor: any, api: any) => {
+const open = (editor: any, sdk: any) => {
   const anchorNode = Utils.getAnchorElement(editor);
   const anchor = extractFromAnchor(editor, anchorNode);
   const initialData = getInitialData(anchor.text, anchor.url, anchor.type === '' ? 'url' : anchor.type === 'Entry' ? 'entry' : 'asset');
-  const spec = getWindowSpec(editor, {initialData}, api);
+  const spec = getWindowSpec(editor, {initialData}, sdk);
   // return { initialData };
-    // const spec = getWindowSpec(editor, d, api);
+    // const spec = getWindowSpec(editor, d, sdk);
     const dialog = editor.windowManager.open(spec);
     if (!!anchor.id) {
       if (anchor.type === 'Entry') {
         //
         dialog.block('Loading Entry');
-        api.space.getEntry(anchor.id).then((entry: any) => {
-          api.space.getContentType(entry.sys.contentType.sys.id).then((contentType: any) => {
+        sdk.space.getEntry(anchor.id).then((entry: any) => {
+          sdk.space.getContentType(entry.sys.contentType.sys.id).then((contentType: any) => {
             const content: string = GetEntryHtml(GetEntityStatus(entry), GetContentTitle(entry), contentType.name);
             dialog.unblock();
-            dialog.redial(getWindowSpec(editor, { initialData, content }, api));
+            dialog.redial(getWindowSpec(editor, { initialData, content }, sdk));
           });
         });
       } else {
         dialog.block('Loading Asset');
-        api.space.getAsset(anchor.id).then((asset: any) => {
+        sdk.space.getAsset(anchor.id).then((asset: any) => {
           // resolve with asset data
           const content: string = GetAssetHtml(GetEntityStatus(asset), asset);
           dialog.unblock();
-          dialog.redial(getWindowSpec(editor, { initialData, content}, api));
+          dialog.redial(getWindowSpec(editor, { initialData, content}, sdk));
         });
       }
     }
