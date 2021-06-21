@@ -1,20 +1,8 @@
 # TinyMCE for Contentful - App
 
+## Testing this integration
 
-
-# Packaging
-
-This is packaged as Contentful UI Extension. The `extension.json` file defines
-the extension and points it to an external web server to serve the extension's files.
-
-In Tiny's case, the files in `src/` are deployed to:
- - https://contentful.tiny.cloud/ (production)
- - https://contentful-staging.tiny.cloud/ (staging)
-
-
-# Testing this integration
-
-## Creating your own App
+### Creating your own App
 
 Launch your instance:
 
@@ -32,7 +20,7 @@ In `Locations`, select `Entry field` and check `Rich text`
 
 Save
 
-## Install the App to your environment
+### Install the App to your environment
 
 Select your environment ('Contentful Apps' if you just created your account)
 
@@ -40,7 +28,7 @@ Select `Apps` -> `Manage Apps`
 
 Scroll down and install the App you just created
 
-## Editing content
+### Editing content
 
 Go to `Content model` to create or update content models with Rich Text as a field
 
