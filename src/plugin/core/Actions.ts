@@ -49,6 +49,10 @@ const embedInline = (editor: any, sdk: any) => {
   });
 };
 
+// const uploadToAsset = (base64: string, fileName: string, sdk: KnownSDK) => {
+//   sdk.space.createUpload(base64).then((upload:any) => {});
+// };
+
 export {
   openDialog,
   embedAsset,

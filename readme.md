@@ -8,6 +8,8 @@ Launch your instance:
 
   - Install dependencies `yarn install`
 
+  - Build hte local dist `yarn build`
+
   - Start the server `yarn serve`
 
 Head over to Contentful.com and create a new account if you don't have one.

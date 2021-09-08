@@ -6,6 +6,16 @@ import { GetInlineEntryHtml, GetAssetHtml, GetEntryHtml } from '../utils/HtmlTem
 // api refers to the contentful api for entry/asset queries
 const setup = (editor: any, sdk: any) => {
 
+  // editor.on('drop', (a: any, b: any, c: any) => {
+  //   console.log(a, b, c);
+  //   a.preventDefault();
+  // });
+
+  // editor.on('BeforeExecCommand', (command: string, ui: boolean, value: any) => {
+  //   //
+  //   console.log(command, ui, value);
+  // });
+
   editor.on('PostRender', () => {
 
     editor.parser.addNodeFilter('a', (nodes: any[]): void => {
@@ -41,6 +51,15 @@ const setup = (editor: any, sdk: any) => {
               const content = GetContentTitle(entry);
               n.innerHTML = GetInlineEntryHtml(GetEntityStatus(entry), content);
             }
+          });
+        } else if(node.attributes.map.type === 'Mention' && node.attributes.map.userid) {
+          // find entry (if fails) then create entry
+          sdk.space.getEntries({
+            'content_type': 'author',
+
+          }).then((entries: any) => {
+            // filter entries
+            console.log(entries);
           });
         }
       });

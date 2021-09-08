@@ -12,7 +12,8 @@ init((sdk) => {
     if (div) div.innerHTML = "<p>Hello world</p>";
     Configurator();
   } else {
-    ScriptLoader(document, 'https://cdn.tiny.cloud/1/asdfasdf/tinymce/5/tinymce.min.js', () => {
+    const apiKey = (sdk.parameters?.instance as any).apiKey || 'no-api-key'
+    ScriptLoader(document, 'https://cdn.tiny.cloud/1/' + apiKey + '/tinymce/5/tinymce.min.js', () => {
       ContentfulEditor(sdk);
     });
   }

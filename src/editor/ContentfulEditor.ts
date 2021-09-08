@@ -2,10 +2,17 @@ import { AstParser } from '../parser/AstParser';
 import { JsonToHtml } from '../parser/JsonParser';
 import { isEqual, throttle } from 'lodash';
 import ContentfulPlugin from '../plugin/Plugin';
+import { KnownSDK } from '@contentful/app-sdk';
 
 declare const tinymce: any;
 
 export const ContentfulEditor = (sdk: any): void => {
+
+  const user = sdk.user;
+
+  sdk.space.getUsers().then((u:any) => {
+    console.log('users: ', u);
+  });
   console.log('creating editor');
   const richText = sdk.field.type === 'RichText';
   console.log('is rich text: ', richText);
@@ -96,15 +103,110 @@ export const ContentfulEditor = (sdk: any): void => {
     'span[contenteditable|class]'
   ].join(',');
 
-  const finalInit = {
-    selector: '#editor',
-    contextmenu: 'ctfLink',
-    toolbar: 'styleselect | bold italic underline | ctfLink | bullist numlist | blockquote hr |  ctfEmbed',
-    min_height: 650,
-    max_height: 1050,
-    plugins: 'contentful noneditable lists hr',
+  let lastAccess = Date.now();
+  let cache: any;
+
+  const getUsers = (api: KnownSDK) => {
+    // cache and clean
+    if (!cache || (Date.now() - lastAccess) > 10000) {
+      return new Promise((resolve, reject) => {
+        api.space.getUsers().then((users: any) => {
+          resolve(users)
+        }).catch(_ => reject());
+      });
+    } else {
+      return Promise.resolve(cache);
+    }
+  };
+
+  const richConf = {
     valid_elements: validElements,
     valid_children: '+span[div]',
+    contextmenu: 'ctfLink',
+    file_picker_types: 'file image media',
+    plugins: 'contentful noneditable lists hr a11ychecker advcode mentions',
+    toolbar: 'styleselect | bold italic underline | ctfLink | bullist numlist | blockquote hr |  ctfEmbed',
+    mentions_fetch: (query: any, success: any) => {
+      getUsers(sdk).then((users: any) => {
+        const mentions = (users.items as []).filter((u:any) => {
+          return `${u.firstName} ${u.lastName}`.toLowerCase().indexOf(query.term.toLowerCase()) !== -1;
+        }).map((u:any) => {
+          return {
+            id: u.sys.id,
+            name: `${u.firstName} ${u.lastName}`,
+            image: u.avatarUrl,
+          }
+        }).slice(0,10);
+        // success(mentions);
+        success(mentions.concat(mentions).concat(mentions)); // overpopulating for a demo
+      });
+    },
+    mentions_menu_complete: (editor:any, userInfo: any) => {
+      // check if the entry exists?
+      const span = editor.getDoc().createElement('span');
+      span.className = 'mention';
+      span.setAttribute('type', 'Mention');
+      span.setAttribute('userid', userInfo.id);
+      return span;
+    },
+  };
+
+  const textConf = {
+    plugins: 'lists advtables hr a11ychecker advcode tinycomments mentions',
+    toolbar: 'styleselect | bold italic underline | ctfLink | bullist numlist | blockquote hr |  ctfEmbed',
+    tinycomments_author: `${user.sys.id}`,
+    tinycomments_author_name: `${user.firstName} ${user.lastName}`,
+    tinycomments_mode: 'embedded',
+    mentions_fetch: (q: any, s: any) => {
+      // filter list
+      console.log('query: ', q);
+      sdk.space.getUsers().then((users:any) => {
+        console.log('looping users: ', users);
+        const u = (users.items as []).filter((u:any) => {
+          console.log('filtering: ', `[${u.firstName} ${u.lastName}]`, `${u.firstName} ${u.lastName}`.indexOf(q.term.toLowerCase()) !== -1);
+          return `${u.firstName} ${u.lastName}`.toLowerCase().indexOf(q.term.toLowerCase()) !== -1;
+        }).map((u:any) => {
+          return {
+            id: u.sys.id,
+            name: `${u.firstName} ${u.lastName}`,
+            image: u.avatarUrl,
+          }
+        }).slice(0,10);
+        console.log(u);
+        s(u);
+      });
+    },
+    mentions_menu_complete: (editor:any, userInfo: any) => {
+      const span = editor.getDoc().createElement('span');
+      span.className = 'mention';
+      span.setAttribute('data-mention-id', userInfo.id);
+      span.appendChild(editor.getDoc().createTextNode('@' + userInfo.name))
+      return span;
+    },
+    mentions_select: (mention: any, success: any) => {
+      const id = mention.getAttribute('data-mention-id');
+      sdk.space.getUsers().then((users:any) => {
+        const user: any = (users.items as []).filter((u:any) => u.sys.id === id)[0];
+        const div = document.createElement('div');
+        div.innerHTML = `<div style='border:1px solid black'><img src='${user.avatarUrl}' style='width:50px;height:50px;float:left;'/><h3>${user.firstName} ${user.lastName}</h3></div>`;
+        success(div);
+      });
+    },
+    // mentions_menu_hover: (userInfo:any, s:any) => {
+    //   console.log('userinfo: ', userInfo);
+    //   sdk.space.getUsers().then((users:any) => {
+    //     const u: any = (users.items as []).filter((u:any) => u.sys.id === userInfo.id)[0];
+    //     const div = document.createElement('div');
+    //     div.innerHTML = `<div><img src='${u.avatarUrl}'/><h1>${u.firstName} ${u.lastName}</h1></div>`;
+    //     s(div);
+    //   });
+    // }
+  };
+
+  const finalInit = {
+    selector: '#editor',
+    min_height: 650,
+    max_height: 1050,
     init_instance_callback: (editor: any) => {
 
       let listening = true;
@@ -148,12 +250,12 @@ export const ContentfulEditor = (sdk: any): void => {
           });
         }
       }
-      var throttledUpdate = throttle(onEditorChange, 500, {leading: true});
+      var throttledUpdate = throttle(onEditorChange, 1000, {leading: true});
       editor.on('change keyup input setcontent blur', throttledUpdate);
     }
   };
 
   sdk.window.startAutoResizer();
 
-  getTinymce().init(finalInit);
+  getTinymce().init({...finalInit, ...richText? richConf : textConf});
 };
