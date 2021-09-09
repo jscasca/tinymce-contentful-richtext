@@ -45,7 +45,7 @@ const embedEntry = (editor: any, sdk: any) => {
 
 const embedInline = (editor: any, sdk: any) => {
   sdk.dialogs.selectSingleEntry().then((entry: any) => {
-    editor.insertContent(`&nbsp<span class='mceNonEditable' contentfulid='${entry.sys.id}' type='Entry'></span>`);
+    editor.insertContent(`\u00A0<span class='mceNonEditable' contentfulid='${entry.sys.id}' type='Entry'></span>`);
   });
 };
 
