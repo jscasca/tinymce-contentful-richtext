@@ -3,22 +3,21 @@ import { JsonToHtml } from '../parser/JsonParser';
 import { isEqual, throttle } from 'lodash';
 import ContentfulPlugin from '../plugin/Plugin';
 import { KnownSDK } from '@contentful/app-sdk';
+import { GetEntryField } from '../plugin/utils/Entities';
 
 declare const tinymce: any;
 
 export const ContentfulEditor = (sdk: any): void => {
 
-  const user = sdk.user;
+  const toolbar = (sdk.parameters?.instance as any).toolbar || '';
+  const richToolbar = toolbar !== '' ? toolbar : 'styleselect | bold italic underline | ctfLink | bullist numlist | blockquote hr |  ctfEmbed language';
+  const longToolbar = toolbar !== '' ? toolbar : 'styleselect | bold italic underline | ctfLink | bullist numlist | blockquote hr |  addcomment showcomments language';
 
-  sdk.space.getUsers().then((u:any) => {
-    console.log('users: ', u);
-  });
-  console.log('creating editor');
+  const user = sdk.user;
   const richText = sdk.field.type === 'RichText';
-  console.log('is rich text: ', richText);
   if (richText) {
     // load external plugins
-    console.log('loading external plugins');
+    //console.log('loading external plugins');
     tinymce.PluginManager.add('contentful', ContentfulPlugin(sdk));
   }
 
@@ -27,8 +26,8 @@ export const ContentfulEditor = (sdk: any): void => {
     return w && w.tinymce ? w.tinymce : null;
   };
 
-  console.log('Preparing editor for: ', sdk.field.type);
-  console.log('checking validations: ', sdk.field.validations);
+  // console.log('Preparing editor for: ', sdk.field.type);
+  // console.log('checking validations: ', sdk.field.validations);
 
   const validations = sdk.field.validations;
   let validNodes: string[] = [
@@ -53,7 +52,7 @@ export const ContentfulEditor = (sdk: any): void => {
   validations.forEach((v: any) => {
     // handle all the diferrent validations somehow?
     if (v.enabledNodeTypes !== undefined) {
-      console.log('valid nodes are: ', v.enabledNodeTypes);
+      // console.log('valid nodes are: ', v.enabledNodeTypes);
       validNodes = (['text', 'paragraph']).concat(v.enabledNodeTypes);
     }
     //["heading-1", "heading-2", "heading-3", "heading-4", "heading-6", "ordered-list", "unordered-list", "hr", "blockquote", "embedded-entry-block", "embedded-asset-block", "hyperlink", "entry-hyperlink", "asset-hyperlink", "embedded-entry-inline"]
@@ -67,7 +66,7 @@ export const ContentfulEditor = (sdk: any): void => {
 
   if (sdk.field.type == 'RichText') {
     //
-    console.log('Creating rich text editor');
+    // console.log('Creating rich text editor');
     // get validations from: sdk.editor.editorInterface.controls => []
     // compare vs sdk.field.fieldId
     // find the field you want [3].field.validations => []
@@ -96,7 +95,7 @@ export const ContentfulEditor = (sdk: any): void => {
     'ul',
     'li',
     'img[style|alt]',
-    '@[contentfulid|type<Entry?Asset]',
+    '@[contentfulid|type<Entry?Asset?Mention|mentionid]',
     'a[href]',
     '@[contenteditable|style|class]',
     'div[contenteditable|class]',
@@ -124,8 +123,8 @@ export const ContentfulEditor = (sdk: any): void => {
     valid_children: '+span[div]',
     contextmenu: 'ctfLink',
     file_picker_types: 'file image media',
-    plugins: 'contentful noneditable lists hr a11ychecker advcode mentions',
-    toolbar: 'styleselect | bold italic underline | ctfLink | bullist numlist | blockquote hr |  ctfEmbed',
+    plugins: 'contentful noneditable lists hr a11ychecker advcode mentions powerpaste tinymcespellchecker',
+    toolbar: richToolbar,
     mentions_fetch: (query: any, success: any) => {
       getUsers(sdk).then((users: any) => {
         const mentions = (users.items as []).filter((u:any) => {
@@ -145,15 +144,34 @@ export const ContentfulEditor = (sdk: any): void => {
       // check if the entry exists?
       const span = editor.getDoc().createElement('span');
       span.className = 'mention';
-      span.setAttribute('type', 'Mention');
-      span.setAttribute('userid', userInfo.id);
+      span.setAttribute('type', 'Entry');
+      span.setAttribute('mentionid', userInfo.id);
+      span.appendChild(editor.getDoc().createTextNode('@' + userInfo.name));
       return span;
+    },
+    mentions_select: (mention: any, success: any) => {
+      const contentfulid = mention.getAttribute('contentfulid');
+      const div = document.createElement('div');
+      if (contentfulid) {
+        sdk.space.getEntry(contentfulid).then((entry) => {
+          const name = GetEntryField(entry, 'name');
+          const avatar = GetEntryField(entry, 'avatar');
+          div.innerHTML = `<div style='border:1px solid black'><img src='${avatar}' style='width:50px;height:50px;float:left;'/><h3>${name}</h3></div>`
+        });
+      }
+      success(div);
+      // getUsers(sdk).then((users:any) => {
+      //   const user: any = (users.items as []).filter((u:any) => u.sys.id === id)[0];
+      //   const div = document.createElement('div');
+      //   div.innerHTML = `<div style='border:1px solid black'><h3>${user.firstName} ${user.lastName}</h3></div>`;
+      //   success(div);
+      // });
     },
   };
 
   const textConf = {
-    plugins: 'lists advtables hr a11ychecker advcode tinycomments mentions',
-    toolbar: 'styleselect | bold italic underline | ctfLink | bullist numlist | blockquote hr |  ctfEmbed',
+    plugins: 'lists table advtable hr a11ychecker advcode tinycomments mentions tinymcespellchecker powerpaste',
+    toolbar: longToolbar,
     tinycomments_author: `${user.sys.id}`,
     tinycomments_author_name: `${user.firstName} ${user.lastName}`,
     tinycomments_mode: 'embedded',
@@ -180,7 +198,7 @@ export const ContentfulEditor = (sdk: any): void => {
       const span = editor.getDoc().createElement('span');
       span.className = 'mention';
       span.setAttribute('data-mention-id', userInfo.id);
-      span.appendChild(editor.getDoc().createTextNode('@' + userInfo.name))
+      span.appendChild(editor.getDoc().createTextNode('@' + userInfo.name));
       return span;
     },
     mentions_select: (mention: any, success: any) => {
@@ -207,6 +225,11 @@ export const ContentfulEditor = (sdk: any): void => {
     selector: '#editor',
     min_height: 650,
     max_height: 1050,
+    spellchecker_language: 'en',
+    powerpaste_html_import: 'prompt',
+    powerpaste_googledocs_import: 'prompt',
+    powerpaste_word_import: 'prompt',
+    powerpaste_allow_local_images: false,
     init_instance_callback: (editor: any) => {
 
       let listening = true;

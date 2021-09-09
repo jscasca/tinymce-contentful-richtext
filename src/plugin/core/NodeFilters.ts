@@ -1,10 +1,25 @@
 // import * as Actions from './Actions';
 
-import { GetContentTitle, GetEntityStatus } from '../utils/Entities';
+import { KnownSDK } from '@contentful/app-sdk';
+import { GetContentTitle, GetEntityStatus, GetEntryField, IsEntryType } from '../utils/Entities';
 import { GetInlineEntryHtml, GetAssetHtml, GetEntryHtml } from '../utils/HtmlTemplates';
 
 // api refers to the contentful api for entry/asset queries
-const setup = (editor: any, sdk: any) => {
+const setup = (editor: any, sdk: KnownSDK) => {
+
+  const updateMention = (nodes: any, entry: any) => {
+    // const nodeList = doc.querySelectorAll(`span[mentionid='${node.attributes.map.mentionid}']`);
+    for(const n of nodes) {
+      n.className = 'mention';
+      n.setAttribute('contentfulid', entry.sys.id);
+      n.setAttribute('data-mce-mentions-id', entry.sys.id);
+      n.setAttribute('mentionid', entry.sys.id);
+      n.innerHTML = '@' + GetEntryField(entry, 'name');
+    }
+  };
+
+  // const updateEmbed = () => {
+  // };
 
   // editor.on('drop', (a: any, b: any, c: any) => {
   //   console.log(a, b, c);
@@ -40,34 +55,69 @@ const setup = (editor: any, sdk: any) => {
     editor.parser.addNodeFilter('span', (nodes:any[]): void => {
       //
       nodes.forEach((node: any) => {
-        if (node.attributes.map.type === 'Entry' && node.attributes.map.contentfulid) {
-
-          sdk.space.getEntry(node.attributes.map.contentfulid).then((entry: any) => {
-            const id = entry.sys.id;
-            var doc = editor.getDoc();
-            const nodeList = doc.querySelectorAll(`span[contentfulid='${id}']`);
-            for (const n of nodeList) {
-              // get the content, determine the status
-              const content = GetContentTitle(entry);
-              n.innerHTML = GetInlineEntryHtml(GetEntityStatus(entry), content);
-            }
-          });
-        } else if(node.attributes.map.type === 'Mention' && node.attributes.map.userid) {
-          // find entry (if fails) then create entry
-          sdk.space.getEntries({
-            'content_type': 'author',
-
-          }).then((entries: any) => {
-            // filter entries
-            console.log(entries);
-          });
+        if (node.attributes.map.type === 'Entry') {
+          if (node.attributes.map.mentionid) {
+            // it's a mention
+            const doc = editor.getDoc();
+            console.log('filtering mention: ', node);
+            sdk.space.getEntries({
+              'content_type': 'mention',
+              'fields.id': node.attributes.map.mentionid
+            }).then((entryQuery: any) => {
+              //// filter the entry
+              console.log('entry query: ', entryQuery);
+              const existingEntry = (entryQuery.items as any[]).filter((e: any) => true)[0];
+              console.log('existing mention: ', existingEntry);
+              if (existingEntry) {
+                console.log('updating mention span by existing');
+                updateMention(doc.querySelectorAll(`span[mentionid='${node.attributes.map.mentionid}']`), existingEntry);
+              } else {
+                sdk.space.getUsers().then((userQuery: any) => {
+                  console.log('user query: ', userQuery)
+                  const user: any = (userQuery.items as []).filter((u: any) => u.sys.id === node.attributes.map.mentionid)[0];
+                  console.log('user found: ', user);
+                  if (user) {
+                    const nextUserEntry = {
+                      sys: {/*id: user.sys.id*/},
+                      fields: {
+                        id: {'en-US': `${user.sys.id}`},
+                        name: {'en-US': `${user.firstName} ${user.lastName}`},
+                        description: {},
+                        avatar: {'en-US': `${user.avatarUrl}`}
+                      }
+                    };
+                    console.log('creating mention: ', nextUserEntry);
+                    sdk.space.createEntry('mention', nextUserEntry).then((entry: any) => {
+                      console.log('updating mention span by new: ', entry);
+                      updateMention(doc.querySelectorAll(`span[mentionid='${node.attributes.map.mentionid}']`), entry);
+                    });
+                  }
+                });
+              }
+            });
+          } else if(node.attributes.map.contentfulid) {
+            // any other embed
+            sdk.space.getEntry(node.attributes.map.contentfulid).then((entry: any) => {
+              const id = entry.sys.id;
+              var doc = editor.getDoc();
+              const nodeList = doc.querySelectorAll(`span[contentfulid='${id}']`);
+              if (IsEntryType(entry, 'mention')) {
+                updateMention(nodeList, entry);
+              } else {
+                for (const n of nodeList) {
+                  // get the content, determine the status
+                  const content = GetContentTitle(entry);
+                  n.innerHTML = GetInlineEntryHtml(GetEntityStatus(entry), content);
+                }
+              }
+            });
+          }
         }
       });
     });
 
     editor.parser.addNodeFilter('div', (nodes: any[]): void => {
       // parsing div:
-      console.log('parsing div: ', nodes);
       nodes.forEach((node: any) => {
         if (node.attributes.map.type === 'Asset') {
           sdk.space.getAsset(node.attributes.map.contentfulid).then((asset: any) => {

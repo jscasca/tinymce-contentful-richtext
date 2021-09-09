@@ -10,6 +10,14 @@ const getNext = (obj: any) => {
   return Object.entries(obj)[0][1];
 };
 
+export const IsEntryType = (entity: any, contentType: string): boolean => {
+  return entity?.sys?.contentType?.sys?.id === contentType;
+}
+
+export const GetEntryField = (entity: any, field: string, defaultLocale: string = 'en-US', defaultValue: string = ''): string => {
+  return entity.fields[field] ? entity.fields[field][defaultLocale] ? entity.fields[field][defaultLocale] : getNext(entity.fields[field]) : defaultValue;
+};
+
 export const GetContentTitle = (entity: any, defaultLocale: string = 'en-US'): string => {
   if (entity?.fields?.title) {
     return entity.fields.title[defaultLocale] ? entity.fields.title[defaultLocale] : getNext(entity.fields.title);
