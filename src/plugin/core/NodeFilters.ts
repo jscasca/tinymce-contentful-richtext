@@ -1,7 +1,7 @@
 // import * as Actions from './Actions';
 
 import { KnownSDK } from '@contentful/app-sdk';
-import { GetContentTitle, GetEntityStatus, GetEntryField, IsEntryType } from '../utils/Entities';
+import { GetContentTitle, GetEntityStatus, GetEntryField, IsEntryType, Status } from '../utils/Entities';
 import { GetInlineEntryHtml, GetAssetHtml, GetEntryHtml } from '../utils/HtmlTemplates';
 
 // api refers to the contentful api for entry/asset queries
@@ -17,19 +17,6 @@ const setup = (editor: any, sdk: KnownSDK) => {
       n.innerHTML = '@' + GetEntryField(entry, 'name');
     }
   };
-
-  // const updateEmbed = () => {
-  // };
-
-  // editor.on('drop', (a: any, b: any, c: any) => {
-  //   console.log(a, b, c);
-  //   a.preventDefault();
-  // });
-
-  // editor.on('BeforeExecCommand', (command: string, ui: boolean, value: any) => {
-  //   //
-  //   console.log(command, ui, value);
-  // });
 
   editor.on('PostRender', () => {
 
@@ -65,9 +52,7 @@ const setup = (editor: any, sdk: KnownSDK) => {
               'fields.id': node.attributes.map.mentionid
             }).then((entryQuery: any) => {
               //// filter the entry
-              console.log('entry query: ', entryQuery);
               const existingEntry = (entryQuery.items as any[]).filter((e: any) => true)[0];
-              console.log('existing mention: ', existingEntry);
               if (existingEntry) {
                 console.log('updating mention span by existing');
                 updateMention(doc.querySelectorAll(`span[mentionid='${node.attributes.map.mentionid}']`), existingEntry);
@@ -86,9 +71,7 @@ const setup = (editor: any, sdk: KnownSDK) => {
                         avatar: {'en-US': `${user.avatarUrl}`}
                       }
                     };
-                    console.log('creating mention: ', nextUserEntry);
                     sdk.space.createEntry('mention', nextUserEntry).then((entry: any) => {
-                      console.log('updating mention span by new: ', entry);
                       updateMention(doc.querySelectorAll(`span[mentionid='${node.attributes.map.mentionid}']`), entry);
                     });
                   }
@@ -96,7 +79,6 @@ const setup = (editor: any, sdk: KnownSDK) => {
               }
             });
           } else if(node.attributes.map.contentfulid) {
-            // any other embed
             sdk.space.getEntry(node.attributes.map.contentfulid).then((entry: any) => {
               const id = entry.sys.id;
               var doc = editor.getDoc();
@@ -105,7 +87,6 @@ const setup = (editor: any, sdk: KnownSDK) => {
                 updateMention(nodeList, entry);
               } else {
                 for (const n of nodeList) {
-                  // get the content, determine the status
                   const content = GetContentTitle(entry);
                   n.innerHTML = GetInlineEntryHtml(GetEntityStatus(entry), content);
                 }
@@ -117,16 +98,12 @@ const setup = (editor: any, sdk: KnownSDK) => {
     });
 
     editor.parser.addNodeFilter('div', (nodes: any[]): void => {
-      // parsing div:
       nodes.forEach((node: any) => {
         if (node.attributes.map.type === 'Asset') {
           sdk.space.getAsset(node.attributes.map.contentfulid).then((asset: any) => {
-            // paste the asset
             const id = asset.sys.id;
             const nodeList = editor.getDoc().querySelectorAll(`div[contentfulid='${id}']`);
             for (const n of nodeList) {
-              const assetHtml = GetAssetHtml(GetEntityStatus(asset), asset);
-              console.log('asset html: ', assetHtml, n);
               n.innerHTML = GetAssetHtml(GetEntityStatus(asset), asset);
             }
           });
@@ -136,19 +113,101 @@ const setup = (editor: any, sdk: KnownSDK) => {
             const contentTypeId = entry.sys.contentType.sys.id;
             const content = GetContentTitle(entry);
             const entryId = entry.sys.id;
-            console.log('converting: ', contentTypeId, content);
 
             sdk.space.getContentType(contentTypeId).then((contentType: any) => {
               const entryType = contentType.name;
               const doc = editor.getDoc();
               const nodeList = doc.querySelectorAll(`div[contentfulid='${entryId}']`);
-              console.log(nodeList);
               for (const n of nodeList) {
-                console.log(n);
                 n.innerHTML = GetEntryHtml(GetEntityStatus(entry), content, entryType);
               }
             });
           });
+        }
+      });
+    });
+
+    const hasParent = (node: any, fn: (node: any) => boolean) => {
+      let n = node;
+      while (n = n.parent) {
+        if (fn(n)) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const getMimeType = (base64: string, d: string = 'image/png'): string => {
+      const potentialType = base64.match(/[^:]\w+\/[\w-+\d.]+(?=;|,)/);
+      return potentialType !== null ? potentialType[0] : d;
+    }
+
+    const getExtension = (mimeType: string, d: string = 'png'): string => {
+      const mimeMap = {
+        'image/png': 'png',
+        'image/gif': 'gif',
+        'image/jpeg': 'jpeg',
+        'image/svg+xml': 'svg'
+      };
+      return mimeMap[mimeType] ? mimeMap[mimeType] : d;
+    }
+
+    const uuid = () => {
+      let dt = new Date().getTime();
+      const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = (dt + Math.random()*16)%16 | 0
+          dt = Math.floor(dt/16)
+          return (c=='x' ? r :(r&0x3|0x8)).toString(16)
+      });
+      return uuid;
+  }
+
+    editor.parser.addNodeFilter('img', (nodes: any[]): void => {
+      nodes.forEach((node: any) => {
+        if (!hasParent(node, (n) => (n.name == 'div' && (n.attributes.map['contentfulid'] || n.attributes.map['img'])))) {
+          if (node.attributes.map.src) {
+            const image = node.attributes.map.src;
+            const base64 = image.split(',')[1];
+            const mimeType = getMimeType(image);
+            const id = uuid();
+            const assetNode = editor.parser.parse('<div img="' + id +'">' + GetAssetHtml(Status.PENDING, {src: image, title: 'Pending asset upload...'}) + '</div>');
+            node.replace(assetNode);
+            sdk.space.createUpload(base64).then((upload: any) => {
+              return sdk.space.createAsset({
+                fields: {
+                  title: {
+                    'en-US': upload.sys.id
+                  },
+                  file: {
+                    'en-US': {
+                      contentType: mimeType,
+                      fileName: upload.sys.id + '.' + getExtension(mimeType),
+                      uploadFrom: {
+                        sys: {
+                          type: "Link",
+                          linkType: "Upload",
+                          id: upload.sys.id
+                        }
+                      }
+                    }
+                  }
+                }
+              });
+            }).then((asset: any) => {
+              return sdk.space.processAsset(asset, 'en-US');
+            }).then((asset: any) => {
+              const doc = editor.getDoc();
+              const nodeList = doc.querySelectorAll(`div[img='${id}']`);
+              for (const n of nodeList) {
+                n.innerHTML = GetAssetHtml(GetEntityStatus(asset), asset);
+                n.removeAttribute('img');
+                n.setAttribute('contentfulid', asset.sys.id);
+                n.setAttribute('type', 'Asset')
+                n.setAttribute('contenteditable', false);
+              }
+              editor.fire('change');
+            });
+          }
         }
       });
     });

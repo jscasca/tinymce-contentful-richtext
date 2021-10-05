@@ -43,3 +43,6 @@ In the configuration modal, go to `Appearance` and select the App you just creat
 Go to `Content` and create or edit an entry using TinyMCE
 
 
+## Plugin Specific implementations
+
+Certain plugins will require the user to implement content structures (Content Types) in their environment to work properly.

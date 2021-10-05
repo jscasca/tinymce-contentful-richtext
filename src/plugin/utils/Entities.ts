@@ -2,9 +2,9 @@
 //   return entity?.sys?.type === 'Entry';
 // };
 
-// const isAsset = (entity: any) => {
-//   return entity?.sys?.type === 'Asset';
-// };
+export const IsAsset = (entity: any) => {
+  return entity?.sys?.type === 'Asset';
+};
 
 const getNext = (obj: any) => {
   return Object.entries(obj)[0][1];

@@ -19,10 +19,19 @@ module.exports = {
   },
   module: {
     rules: [
-      { 
+      {
         test: /\.tsx?$/,
-        loader: "ts-loader"
+        exclude: /node_modules/,
+        use: ['ts-loader']
       },
+      {
+        test: /\.css$/,
+        use: ["css-loader"]
+      },
+      // { 
+      //   test: /\.tsx?$/,
+      //   loader: "ts-loader"
+      // },
       {
         test: /\.html$/,
         loader: "raw-loader"

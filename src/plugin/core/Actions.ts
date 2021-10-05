@@ -33,13 +33,13 @@ const embed = (editor: any, id: string, type: string): void => {
 
 const embedAsset = (editor: any, sdk: any) => {
   sdk.dialogs.selectSingleAsset().then((entry: any) => {
-    embed(editor, entry.sys.id, 'Asset');
+    if (entry) embed(editor, entry.sys.id, 'Asset');
   });
 };
 
 const embedEntry = (editor: any, sdk: any) => {
   sdk.dialogs.selectSingleEntry().then((entry: any) => {
-    embed(editor, entry.sys.id, 'Entry');
+    if (entry) embed(editor, entry.sys.id, 'Entry');
   });
 };
 

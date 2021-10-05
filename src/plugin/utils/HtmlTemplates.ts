@@ -1,4 +1,4 @@
-import { Status } from './Entities';
+import { Status, IsAsset } from './Entities';
 
 interface Color {
   color: string;
@@ -34,9 +34,7 @@ const embedColors: Record<Status, Color> = {
   }
 }
 
-const getImageContainer = (asset: any): string => {
-  const title = asset.fields.title['en-US'];
-  const src = asset.fields.file['en-US'].url;
+const getImageContainer = (src: string, title: string): string => {
   const imageTemplate = '\
   <div style="height:100%;display:flex;align-items:center;justify-content:center;">\
     <img style="width: auto;max-width:100%;max-height:100%;" src="' + src + '" alt="' + title + '">\
@@ -45,29 +43,39 @@ const getImageContainer = (asset: any): string => {
 };
 
 const getDefaultContainer = (asset: any): string => {
-  //<span class="fa fa-bus">&nbsp;</span>
   const title = asset.fields.title['en-US'];
-  // file details in asset.fields.file['en-US']
+  // put a file icon here or something
   const fileTemplate = '\
   <div style="display:flex;justify-content:center;width:100%;margin-bottom:1.25rem;margin-top:1.25rem;">\
-    <span class="fa fa-file">&nbsp;</span>\
+    <span>&nbsp;</span>\
   </div>\
   <span style="color:#ccc;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:0.9rem;">' + title + '</span>';
   return fileTemplate;
+};
+
+const getAssetImageContainer = (asset: any): string => {
+  const title = asset.fields.title['en-US'];
+  const src = asset.fields.file['en-US'].url;
+  return getImageContainer(src, title);
 };
 
 const getAssetContentHtml = (asset: any): string => {
   console.log(asset);
   const file = asset.fields.file['en-US'];
   const contentType = file.contentType;
-  if (contentType === 'image/png') {
-    return getImageContainer(asset);
+  if (contentType === 'image/png' || contentType === 'image/jpeg') {
+    return getAssetImageContainer(asset);
   }
   return getDefaultContainer(asset);
 };
 
+const getPendingAssetContent = (fakeAsset: any): string => {
+  return getImageContainer(fakeAsset.src, fakeAsset.title);
+};
+
 export const GetAssetHtml = (status: Status, asset: any): string => {
   console.log(asset);
+  const assetContent = IsAsset(asset) ? getAssetContentHtml(asset) : getPendingAssetContent(asset);
   const entryTemplate = '\
   <div style="border-radius:6px;border:1px solid #ccc;margin-bottom:1.25rem;">\
     <div style="border-bottom:1px solid #ccc;display:flex;justify-content:flex-end;align-items:center;padding:8px 15px;">\
@@ -76,7 +84,7 @@ export const GetAssetHtml = (status: Status, asset: any): string => {
     <div style="display:flex;padding:2px 5px;">\
       <div style="white-space:nowrap;overflow:hidden;width:100%;">\
         <div style="height:16.5rem;overflow:hidden;position:relative;">\
-        ' + getAssetContentHtml(asset) + '\
+        ' + assetContent + '\
         </div>\
       </div>\
     </div>\
@@ -108,3 +116,7 @@ export const GetInlineEntryHtml = (status: Status, content: string): string => {
   </span>';
   return entryTemplate;
 };
+
+export const GetMention = (): string => {
+  return '';
+}

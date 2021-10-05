@@ -8,26 +8,14 @@ import { GetEntryField } from '../plugin/utils/Entities';
 declare const tinymce: any;
 
 export const ContentfulEditor = (sdk: any): void => {
-
-  const toolbar = (sdk.parameters?.instance as any).toolbar || '';
-  const richToolbar = toolbar !== '' ? toolbar : 'styleselect | bold italic underline | ctfLink | bullist numlist | blockquote hr |  ctfEmbed language';
-  const longToolbar = toolbar !== '' ? toolbar : 'styleselect | bold italic underline | ctfLink | bullist numlist | blockquote hr |  addcomment showcomments language';
-
+  
   const user = sdk.user;
   const richText = sdk.field.type === 'RichText';
-  if (richText) {
-    // load external plugins
-    //console.log('loading external plugins');
-    tinymce.PluginManager.add('contentful', ContentfulPlugin(sdk));
-  }
 
   const getTinymce = () => {
     const w = typeof window !== 'undefined' ? (window as any) : undefined;
     return w && w.tinymce ? w.tinymce : null;
   };
-
-  // console.log('Preparing editor for: ', sdk.field.type);
-  // console.log('checking validations: ', sdk.field.validations);
 
   const validations = sdk.field.validations;
   let validNodes: string[] = [
@@ -50,9 +38,7 @@ export const ContentfulEditor = (sdk: any): void => {
     "embedded-entry-inline"
   ];
   validations.forEach((v: any) => {
-    // handle all the diferrent validations somehow?
     if (v.enabledNodeTypes !== undefined) {
-      // console.log('valid nodes are: ', v.enabledNodeTypes);
       validNodes = (['text', 'paragraph']).concat(v.enabledNodeTypes);
     }
     //["heading-1", "heading-2", "heading-3", "heading-4", "heading-6", "ordered-list", "unordered-list", "hr", "blockquote", "embedded-entry-block", "embedded-asset-block", "hyperlink", "entry-hyperlink", "asset-hyperlink", "embedded-entry-inline"]
@@ -62,9 +48,8 @@ export const ContentfulEditor = (sdk: any): void => {
   // formatting: h1-h6, b, i, u, code, ul, ol, blockquote, hr
   // links: to url, to entry, to asset
   // embedded entries: entry, inline entry, asset
-
-
-  if (sdk.field.type == 'RichText') {
+  if (richText) {
+    tinymce.PluginManager.add('contentful', ContentfulPlugin(sdk));
     //
     // console.log('Creating rich text editor');
     // get validations from: sdk.editor.editorInterface.controls => []
@@ -94,17 +79,23 @@ export const ContentfulEditor = (sdk: any): void => {
     'ol',
     'ul',
     'li',
-    'img[style|alt]',
+    'img[style|alt|src]',
     '@[contentfulid|type<Entry?Asset?Mention|mentionid]',
     'a[href]',
     '@[contenteditable|style|class]',
-    'div[contenteditable|class]',
+    'div[contenteditable|class|img|style]',
     'span[contenteditable|class]'
   ].join(',');
 
+  // Currently images are handled by a nodeFilter
+  const imageUploader = (data: any, success: (url: string) => void, failure: (err: string, options?: any) => void) => {
+    const src = 'data:' + data.blob().type + ';base64,' + data.base64();
+    success(src);
+  };
+
+
   let lastAccess = Date.now();
   let cache: any;
-
   const getUsers = (api: KnownSDK) => {
     // cache and clean
     if (!cache || (Date.now() - lastAccess) > 10000) {
@@ -118,30 +109,55 @@ export const ContentfulEditor = (sdk: any): void => {
     }
   };
 
+  interface MentionUser {
+    id: string;
+    name: string;
+    image?: string;
+    description?: string;
+  };
+
+  interface MentionQuery {
+    term: string
+  }
+
+  const mentionsFetch = (query: MentionQuery, success: (users: MentionUser[]) => void) => {
+    getUsers(sdk).then((users: any) => {
+      const mentions = (users.items as []).filter((u:any) => {
+        return `${u.firstName} ${u.lastName}`.toLowerCase().indexOf(query.term.toLowerCase()) !== -1;
+      }).map((u:any) => {
+        return {
+          id: u.sys.id,
+          name: `${u.firstName} ${u.lastName}`,
+          image: u.avatarUrl,
+        }
+      }).slice(0,10);
+      success(mentions);
+    });
+  };
+
+  const toolbar = ((sdk.parameters?.instance as any).toolbar || '').trim();
+  const richToolbar = toolbar !== '' ? toolbar : 'styleselect | bold italic underline | ctfLink | bullist numlist | blockquote hr |  ctfEmbed language';
+  const longToolbar = toolbar !== '' ? toolbar : 'styleselect | bold italic underline | ctfLink | bullist numlist | blockquote hr |  addcomment showcomments language';
+
+  const plugins = ((sdk.parameters?.instance as any).plugins || '').trim();
+  const defaultRichTextPlugins = 'contentful noneditable lists hr';
+  // const defaultRichTextPremiumPlugins = 'contentful noneditable lists hr a11ychecker advcode mentions powerpaste tinymcespellchecker';
+  const defaultPlugins = 'lists table advtable hr';
+  // const defaultPremiumPlugins = 'lists table advtable hr a11ychecker advcode tinycomments mentions tinymcespellchecker powerpaste';
+  const richPlugins = plugins !== '' ? plugins : defaultRichTextPlugins; 
+  const textPlugins = plugins !== '' ? plugins : defaultPlugins;
+
   const richConf = {
+    paste_data_images: true,
+    powerpaste_allow_local_images: false,
+    images_upload_handler: imageUploader,
     valid_elements: validElements,
-    valid_children: '+span[div]',
+    valid_children: '+span[div],-p[div],-p[img]',
     contextmenu: 'ctfLink',
-    file_picker_types: 'file image media',
-    plugins: 'contentful noneditable lists hr a11ychecker advcode mentions powerpaste tinymcespellchecker',
+    plugins: richPlugins,
     toolbar: richToolbar,
-    mentions_fetch: (query: any, success: any) => {
-      getUsers(sdk).then((users: any) => {
-        const mentions = (users.items as []).filter((u:any) => {
-          return `${u.firstName} ${u.lastName}`.toLowerCase().indexOf(query.term.toLowerCase()) !== -1;
-        }).map((u:any) => {
-          return {
-            id: u.sys.id,
-            name: `${u.firstName} ${u.lastName}`,
-            image: u.avatarUrl,
-          }
-        }).slice(0,10);
-        // success(mentions);
-        success(mentions.concat(mentions).concat(mentions)); // overpopulating for a demo
-      });
-    },
-    mentions_menu_complete: (editor:any, userInfo: any) => {
-      // check if the entry exists?
+    mentions_fetch: mentionsFetch,
+    mentions_menu_complete: (editor:any, userInfo: MentionUser) => {
       const span = editor.getDoc().createElement('span');
       span.className = 'mention';
       span.setAttribute('type', 'Entry');
@@ -160,48 +176,24 @@ export const ContentfulEditor = (sdk: any): void => {
         });
       }
       success(div);
-      // getUsers(sdk).then((users:any) => {
-      //   const user: any = (users.items as []).filter((u:any) => u.sys.id === id)[0];
-      //   const div = document.createElement('div');
-      //   div.innerHTML = `<div style='border:1px solid black'><h3>${user.firstName} ${user.lastName}</h3></div>`;
-      //   success(div);
-      // });
     },
   };
 
   const textConf = {
-    plugins: 'lists table advtable hr a11ychecker advcode tinycomments mentions tinymcespellchecker powerpaste',
+    plugins: textPlugins,
     toolbar: longToolbar,
     tinycomments_author: `${user.sys.id}`,
     tinycomments_author_name: `${user.firstName} ${user.lastName}`,
     tinycomments_mode: 'embedded',
-    mentions_fetch: (q: any, s: any) => {
-      // filter list
-      console.log('query: ', q);
-      sdk.space.getUsers().then((users:any) => {
-        console.log('looping users: ', users);
-        const u = (users.items as []).filter((u:any) => {
-          console.log('filtering: ', `[${u.firstName} ${u.lastName}]`, `${u.firstName} ${u.lastName}`.indexOf(q.term.toLowerCase()) !== -1);
-          return `${u.firstName} ${u.lastName}`.toLowerCase().indexOf(q.term.toLowerCase()) !== -1;
-        }).map((u:any) => {
-          return {
-            id: u.sys.id,
-            name: `${u.firstName} ${u.lastName}`,
-            image: u.avatarUrl,
-          }
-        }).slice(0,10);
-        console.log(u);
-        s(u);
-      });
-    },
-    mentions_menu_complete: (editor:any, userInfo: any) => {
+    mentions_fetch: mentionsFetch,
+    mentions_menu_complete: (editor: any, userInfo: MentionUser) => {
       const span = editor.getDoc().createElement('span');
       span.className = 'mention';
       span.setAttribute('data-mention-id', userInfo.id);
       span.appendChild(editor.getDoc().createTextNode('@' + userInfo.name));
       return span;
     },
-    mentions_select: (mention: any, success: any) => {
+    mentions_select: (mention: HTMLDivElement, success: (any: HTMLDivElement) => void) => {
       const id = mention.getAttribute('data-mention-id');
       sdk.space.getUsers().then((users:any) => {
         const user: any = (users.items as []).filter((u:any) => u.sys.id === id)[0];
@@ -209,16 +201,7 @@ export const ContentfulEditor = (sdk: any): void => {
         div.innerHTML = `<div style='border:1px solid black'><img src='${user.avatarUrl}' style='width:50px;height:50px;float:left;'/><h3>${user.firstName} ${user.lastName}</h3></div>`;
         success(div);
       });
-    },
-    // mentions_menu_hover: (userInfo:any, s:any) => {
-    //   console.log('userinfo: ', userInfo);
-    //   sdk.space.getUsers().then((users:any) => {
-    //     const u: any = (users.items as []).filter((u:any) => u.sys.id === userInfo.id)[0];
-    //     const div = document.createElement('div');
-    //     div.innerHTML = `<div><img src='${u.avatarUrl}'/><h1>${u.firstName} ${u.lastName}</h1></div>`;
-    //     s(div);
-    //   });
-    // }
+    }
   };
 
   const finalInit = {
@@ -249,11 +232,9 @@ export const ContentfulEditor = (sdk: any): void => {
         }
       };
 
-      console.log('seeting initial content: ', sdk.field.getValue());
       setContent(sdk.field.getValue());
 
       sdk.field.onValueChanged((fieldValue: any) => {
-        console.log('value changed: ', fieldValue);
         if (listening) {
           setContent(fieldValue);
         }
@@ -268,12 +249,11 @@ export const ContentfulEditor = (sdk: any): void => {
           sdk.field.setValue(editorContent).then(() => {
             listening = true;
           }).catch((err: any) => {
-            console.log('Error saving content', err);
             listening =true;
           });
         }
       }
-      var throttledUpdate = throttle(onEditorChange, 1000, {leading: true});
+      var throttledUpdate = throttle(onEditorChange, 500, {leading: true});
       editor.on('change keyup input setcontent blur', throttledUpdate);
     }
   };
